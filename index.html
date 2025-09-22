@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mobile Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding-bottom: 80px; font-family: sans-serif; background-color: #f4f7f6; }
+    #messages { list-style-type: none; margin: 0; padding: 10px; }
+    .message-item { padding: 10px 15px; margin-bottom: 10px; border-radius: 20px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
+    .message-item .meta { font-size: 0.8em; color: #555; margin-bottom: 4px; }
+    .message-item .meta .name { font-weight: bold; }
+    .message-item .meta .time { float: right; }
+    .message-item .text { font-size: 1em; }
+    .my-message { background-color: #dcf8c6; align-self: flex-end; margin-left: auto; } /* Your own messages */
+    .other-message { background-color: #fff; align-self: flex-start; margin-right: auto; border: 1px solid #eee; } /* Messages from others */
+    #form { background: #ffffff; padding: 10px; position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; box-sizing: border-box; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); height: 70px; }
+    #input { border: 1px solid #ccc; padding: 12px 15px; flex-grow: 1; margin-right: 10px; border-radius: 25px; font-size: 16px; outline: none; }
+    #form > button { background: #007bff; border: none; padding: 12px 20px; border-radius: 25px; color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <ul id="messages"></ul>
+  <form id="form" action="">
+    <input id="input" autocomplete="off" placeholder="Type your message..." /><button>Send</button>
+  </form>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+    let username = '';
+
+    // Function to get and set the username
+    function getUsername() {
+      // Check if username is already saved in the browser
+      username = localStorage.getItem('chat_username');
+      if (!username) {
+        // If not, ask the user for their name
+        username = prompt('Please enter your name:');
+        if (username && username.trim() !== '') {
+          // Save the name in the browser for next time
+          localStorage.setItem('chat_username', username);
+        } else {
+          // If they cancel or enter nothing, give a default name
+          username = 'Anonymous';
+        }
+      }
+    }
+
+    getUsername();
+
+    // When the form is submitted, send the message AND the username
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (input.value.trim()) {
+        const messageData = {
+          name: username,
+          text: input.value.trim()
+        };
+        socket.emit('chat message', messageData);
+        input.value = '';
+      }
+    });
+
+    // When a message is received from the server
+    socket.on('chat message', function(msg) {
+      const item = document.createElement('li');
+      
+      // Add a special class for your own messages vs others' messages
+      if (msg.name === username) {
+        item.className = 'message-item my-message';
+      } else {
+        item.className = 'message-item other-message';
+      }
+
+      // Format the time to be readable (e.g., 9:25 PM)
+      const messageTime = new Date(msg.time).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Create the HTML structure for the message
+      item.innerHTML = `
+        <div class="meta">
+          <span class="name">${msg.name}</span>
+          <span class="time">${messageTime}</span>
+        </div>
+        <div class="text">${msg.text}</div>
+      `;
+      
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+    });
+  </script>
+</body>
+</html>
