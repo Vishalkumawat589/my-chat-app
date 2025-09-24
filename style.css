@@ -1,0 +1,121 @@
+/* General Body Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    color: #333;
+}
+
+/* General Container Styles */
+#login-container, #chat-container {
+    text-align: center;
+}
+
+/* Card Styling for the Form */
+.form-card {
+    background-color: white;
+    padding: 2rem 3rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 350px;
+}
+
+h1, h2 {
+    color: #1c1e21;
+}
+
+p {
+    color: #606770;
+    margin-bottom: 1.5rem;
+}
+
+/* Tab Styles */
+.tabs {
+    display: flex;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #dddfe2;
+}
+.tab-button {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #606770;
+    border-bottom: 3px solid transparent;
+}
+.tab-button.active {
+    color: #1877f2;
+    border-bottom: 3px solid #1877f2;
+    font-weight: bold;
+}
+
+/* Input Field Grouping */
+.input-group {
+    margin-bottom: 1.25rem;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    color: #333;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #dddfe2;
+    border-radius: 6px;
+    box-sizing: border-box; /* Ensures padding doesn't affect width */
+    font-size: 1rem;
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: #1877f2;
+    box-shadow: 0 0 0 2px #e7f3ff;
+}
+
+small {
+    display: block;
+    margin-top: 5px;
+    color: #888;
+}
+
+/* Button Styles */
+button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #1877f2;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #166fe5;
+}
+
+/* Error Message Styling */
+.error {
+    color: #fa383e;
+    font-weight: bold;
+    margin-top: 1rem;
+    min-height: 20px; /* Prevents layout shift */
+}
+
+/* Utility Class */
+.hidden {
+    display: none;
+}
