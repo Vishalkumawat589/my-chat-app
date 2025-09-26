@@ -15,7 +15,6 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   }
 });
-
 const PORT = process.env.PORT || 3001;
 
 // --- Middleware ---
@@ -31,90 +30,92 @@ const pool = new Pool({
 });
 
 const ADMIN_NAME = 'vishal';
-let connectedUsers = {}; // Tracks users: { username: socketId }
+let connectedUsers = {};
 
 // (The createUsersTable function remains the same)
-const createUsersTable = async () => {
-  const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) UNIQUE NOT NULL,
-      answer1 VARCHAR(255) NOT NULL,
-      answer2 VARCHAR(255) NOT NULL
-    );
-  `;
-  try {
-    const client = await pool.connect();
-    await client.query(createTableQuery);
-    console.log('Table "users" with security questions is ready.');
-    client.release();
-  } catch (err) {
-    console.error('Error creating users table:', err);
-  }
-};
+const createUsersTable = async () => { /* ... (code from previous version) ... */ };
 
 // --- 4. API Routes ---
-
-// (Your /register and /recover endpoints remain the same)
 const isValidInput = (input) => /^[a-z]+$/.test(input);
-app.post('/register', async (req, res) => { /* ... (code from previous version) ... */ });
-app.post('/recover', async (req, res) => { /* ... (code from previous version) ... */ });
 
+app.post('/register', async (req, res) => {
+  const { name, answer1, answer2 } = req.body;
+  if (!name || !answer1 || !answer2 || !isValidInput(name) || !isValidInput(answer1) || !isValidInput(answer2)) {
+    return res.status(400).json({ success: false, message: 'Invalid input. Use lowercase letters only for all fields.' });
+  }
 
-// --- NEW Endpoint to get all registered users ---
-app.get('/users', async (req, res) => {
+  let client; // Define client here to be accessible in finally block
   try {
-    const client = await pool.connect();
+    client = await pool.connect();
+    const userExists = await client.query('SELECT * FROM users WHERE name = $1', [name]);
+    if (userExists.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'This name is already taken.' });
+    }
+    const createUserQuery = 'INSERT INTO users (name, answer1, answer2) VALUES ($1, $2, $3)';
+    await client.query(createUserQuery, [name, answer1, answer2]);
+    console.log(`User '${name}' created.`);
+    res.status(201).json({ success: true, message: 'Registration successful.' });
+  } catch (err) {
+    console.error('Error during registration:', err);
+    res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+  } finally {
+    if (client) {
+      client.release(); // This will ALWAYS run and release the connection
+    }
+  }
+});
+
+app.post('/recover', async (req, res) => {
+  const { name, answer1, answer2 } = req.body;
+  if (!name || !answer1 || !answer2) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    const findUserQuery = 'SELECT * FROM users WHERE name = $1';
+    const userResult = await client.query(findUserQuery, [name]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'This name is not registered.' });
+    }
+    const user = userResult.rows[0];
+    if (user.answer1 === answer1 && user.answer2 === answer2) {
+      console.log(`User '${name}' recovered session.`);
+      res.status(200).json({ success: true, message: 'Login successful.' });
+    } else {
+      res.status(401).json({ success: false, message: 'One or more security answers are incorrect.' });
+    }
+  } catch (err) {
+    console.error('Error during recovery:', err);
+    res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+  } finally {
+    if (client) {
+      client.release(); // This will ALWAYS run and release the connection
+    }
+  }
+});
+
+app.get('/users', async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
     const result = await client.query('SELECT name FROM users');
     const users = result.rows.map(row => row.name);
     res.status(200).json({ success: true, users: users });
-    client.release();
   } catch (err) {
     console.error('Error fetching all users:', err);
     res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
-
 // --- 5. Real-Time Private Chat Logic ---
 // (This logic remains the same as the previous version)
-io.on('connection', (socket) => {
-  socket.on('user connected', (username) => {
-    console.log(`${username} connected to chat`);
-    connectedUsers[username] = socket.id;
-    if (connectedUsers[ADMIN_NAME] && username !== ADMIN_NAME) {
-      io.to(connectedUsers[ADMIN_NAME]).emit('user list update', Object.keys(connectedUsers));
-    }
-  });
-
-  socket.on('private message', (msg) => {
-    if (msg.from === ADMIN_NAME) {
-      const recipientSocketId = connectedUsers[msg.to];
-      if (recipientSocketId) {
-        io.to(recipientSocketId).emit('private message', msg);
-      }
-    } else {
-      const adminSocketId = connectedUsers[ADMIN_NAME];
-      if (adminSocketId) {
-        io.to(adminSocketId).emit('private message', msg);
-      }
-    }
-  });
-
-  socket.on('disconnect', () => {
-    for (const username in connectedUsers) {
-      if (connectedUsers[username] === socket.id) {
-        delete connectedUsers[username];
-        console.log(`${username} disconnected from chat`);
-        if (connectedUsers[ADMIN_NAME]) {
-          io.to(connectedUsers[ADMIN_NAME]).emit('user list update', Object.keys(connectedUsers));
-        }
-        break;
-      }
-    }
-  });
-});
-
+io.on('connection', (socket) => { /* ... (code from previous version) ... */ });
 
 // --- 6. Start the Server ---
 httpServer.listen(PORT, () => {
@@ -122,5 +123,6 @@ httpServer.listen(PORT, () => {
   createUsersTable();
 });
 
-// Note: To keep this block concise, the identical code for /register and /recover has been commented out. 
-// You should keep the full functions from the previous version in your file.
+// Note: To keep this block concise, some identical code has been commented out.
+// Please use the full functions provided here, as the structure for handling database connections has changed.
+      
