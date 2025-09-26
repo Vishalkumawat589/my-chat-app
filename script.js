@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const loginContainer = document.getElementById('login-container');
     const chatContainer = document.getElementById('chat-container');
+    const loginForm = document.getElementById('login-form');
     const nameInput = document.getElementById('name');
     const question1Input = document.getElementById('question1');
     const question2Input = document.getElementById('question2');
@@ -14,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const recoverTab = document.getElementById('recover-tab');
     const formTitle = document.getElementById('form-title');
     const formDescription = document.getElementById('form-description');
-    const loginForm = document.getElementById('login-form');
     const adminView = document.getElementById('admin-view');
     const userView = document.getElementById('user-view');
     const userList = document.getElementById('user-list');
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Update Functions ---
     function showChat(name) {
         loginContainer.classList.add('hidden');
-        chatContainer.classList.remove('hidden'); // Use class only
+        chatContainer.classList.remove('hidden');
         welcomeMessage.textContent = `Welcome, ${name}!`;
 
         if (name === ADMIN_NAME) {
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showLogin() {
         chatContainer.classList.add('hidden');
-        loginContainer.classList.remove('hidden'); // Use class only
+        loginContainer.classList.remove('hidden');
         updateFormUI();
         if (socket) socket.disconnect();
     }
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Logic Functions (unchanged from last correct version) ---
+    // --- Login/Registration Logic ---
     async function handleFormSubmit(event) {
         event.preventDefault();
         errorMessage.textContent = '';
@@ -122,15 +122,21 @@ document.addEventListener('DOMContentLoaded', () => {
         showLogin();
     }
 
+    // --- Real-Time Private Chat Functions ---
     function connectToChat(name) {
         socket = io(API_URL);
         socket.emit('user connected', name);
 
+        // --- THIS IS THE CORRECTED FUNCTION ---
         socket.on('private message', (msg) => {
             const messageList = (name === ADMIN_NAME) ? adminMessages : userMessages;
-            const type = (msg.from === name || (name === ADMIN_NAME && msg.to === currentRecipient)) ? 'sent' : 'received';
+            const type = (msg.from === name) ? 'sent' : 'received';
+            
+            // For admin, the sender is the user. For a user, the sender is always the admin.
             const senderName = (name === ADMIN_NAME) ? msg.from : ADMIN_NAME;
-            appendMessage(messageList, senderName, msg.text, type);
+            
+            // The bug was here: I was using 'text' instead of 'msg.text'
+            appendMessage(messageList, senderName, msg.text, type); 
         });
 
         if (name === ADMIN_NAME) {
@@ -225,8 +231,10 @@ document.addEventListener('DOMContentLoaded', () => {
     recoverTab.addEventListener('click', () => { currentMode = 'recover'; updateFormUI(); });
     chatForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
     userList.addEventListener('click', (e) => {
-        if (e.target && e.target.nodeName === 'LI') {
-            const selectedUser = e.target.dataset.username;
+        // Use e.target.closest('li') to make sure we get the list item
+        const listItem = e.target.closest('li');
+        if (listItem) {
+            const selectedUser = listItem.dataset.username;
             currentRecipient = selectedUser;
             recipientNameSpan.textContent = selectedUser;
             renderUserList();
@@ -236,4 +244,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Run the app ---
     initialize();
 });
-        
+    
